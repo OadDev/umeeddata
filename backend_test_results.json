@@ -1,0 +1,170 @@
+{
+  "timestamp": "2026-03-31T20:35:44.887317",
+  "total_tests": 27,
+  "passed_tests": 25,
+  "success_rate": 92.5925925925926,
+  "results": [
+    {
+      "name": "Admin Login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "User Login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Current User (Admin)",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Invalid Login (401)",
+      "success": true,
+      "details": "Response: {'detail': 'Invalid email or password'}",
+      "response_data": null
+    },
+    {
+      "name": "Logout",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Dashboard Data",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Dashboard Structure Validation",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Campaigns List",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Single Campaign",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Create Campaign",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Update Campaign",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Delete Campaign",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Daily Entries",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Daily Entries with Date Filter",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Create Daily Entry",
+      "success": false,
+      "details": "Response: {'detail': 'Entry for this date already exists'}",
+      "response_data": null
+    },
+    {
+      "name": "Get Reports",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Reports with Preset Filter",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Monthly Reports",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Stakeholder Earnings",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Settings",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Update Settings",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Users (Admin)",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "User Access Restriction (403)",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Create User",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Delete User",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Get Monthly Settlements",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "name": "Settlements User Access Restriction (403)",
+      "success": false,
+      "details": "",
+      "response_data": null
+    }
+  ]
+}
