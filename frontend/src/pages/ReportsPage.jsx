@@ -10,6 +10,17 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { ChartBar, Funnel, Export, CalendarBlank } from '@phosphor-icons/react';
 
+// Helper function to format date as "1st April, 2026"
+const formatDateOrdinal = (dateStr) => {
+  const date = new Date(dateStr);
+  const day = date.getDate();
+  const suffix = (day >= 11 && day <= 13) ? 'th' : 
+    { 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th';
+  const month = date.toLocaleDateString('en-IN', { month: 'long' });
+  const year = date.getFullYear();
+  return `${day}${suffix} ${month}, ${year}`;
+};
+
 const ReportsPage = () => {
   const [reports, setReports] = useState({ entries: [], summary: {} });
   const [campaigns, setCampaigns] = useState([]);
@@ -66,8 +77,13 @@ const ReportsPage = () => {
     }).format(value);
   };
 
+  const getCampaignCommission = (campaignId) => {
+    const camp = campaigns.find(c => c.id === campaignId);
+    return camp?.commission_percentage || 0;
+  };
+
   const exportToCSV = () => {
-    const headers = ['Date', 'Campaign', 'Ad Spend', 'Ad Spend+GST', 'Website', 'QR', 'Gateway', 'Revenue', 'Profit', 'Commission'];
+    const headers = ['Date', 'Campaign', 'Ad Spend', 'Ad Spend+GST', 'Website', 'QR', 'Gateway', 'Revenue', 'Profit', 'Commission', 'After Commission'];
     const rows = reports.entries.map(e => [
       e.date,
       e.campaign_name,
@@ -78,7 +94,8 @@ const ReportsPage = () => {
       e.gateway_charge,
       e.total_revenue,
       e.net_profit,
-      e.platform_commission
+      e.platform_commission,
+      e.net_profit - e.platform_commission
     ]);
     
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
@@ -259,32 +276,44 @@ const ReportsPage = () => {
                   <TableHead className="text-right">Revenue</TableHead>
                   <TableHead className="text-right">Profit</TableHead>
                   <TableHead className="text-right">Commission</TableHead>
+                  <TableHead className="text-right">After Comm.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {reports.entries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-[#78716C]">
+                    <TableCell colSpan={11} className="text-center py-8 text-[#78716C]">
                       No data found for the selected filters
                     </TableCell>
                   </TableRow>
                 ) : (
-                  reports.entries.map((entry, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{new Date(entry.date).toLocaleDateString('en-IN')}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{entry.campaign_name}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(entry.ad_spend)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(entry.ad_spend_with_gst)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(entry.website_collection)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(entry.qr_collection)}</TableCell>
-                      <TableCell className="text-right text-red-500">{formatCurrency(entry.gateway_charge)}</TableCell>
-                      <TableCell className="text-right text-[#6AAF35]">{formatCurrency(entry.total_revenue)}</TableCell>
-                      <TableCell className={`text-right font-medium ${entry.net_profit >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
-                        {formatCurrency(entry.net_profit)}
-                      </TableCell>
-                      <TableCell className="text-right text-[#F5A623]">{formatCurrency(entry.platform_commission)}</TableCell>
-                    </TableRow>
-                  ))
+                  reports.entries.map((entry, idx) => {
+                    const commPct = getCampaignCommission(entry.campaign_id);
+                    const afterComm = entry.net_profit - entry.platform_commission;
+                    return (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium whitespace-nowrap">{formatDateOrdinal(entry.date)}</TableCell>
+                        <TableCell className="max-w-[150px] truncate">{entry.campaign_name}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(entry.ad_spend)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(entry.ad_spend_with_gst)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(entry.website_collection)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(entry.qr_collection)}</TableCell>
+                        <TableCell className="text-right text-red-500">{formatCurrency(entry.gateway_charge)}</TableCell>
+                        <TableCell className="text-right text-[#6AAF35]">{formatCurrency(entry.total_revenue)}</TableCell>
+                        <TableCell className={`text-right font-medium ${entry.net_profit >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
+                          {formatCurrency(entry.net_profit)}
+                        </TableCell>
+                        <TableCell className="text-right text-[#F5A623]">
+                          <div>{formatCurrency(entry.platform_commission)}</div>
+                          <div className="text-xs text-[#78716C]">({commPct}%)</div>
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${afterComm >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
+                          <div>{formatCurrency(afterComm)}</div>
+                          <div className="text-xs text-[#78716C]">({100 - commPct}%)</div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

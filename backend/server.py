@@ -531,6 +531,107 @@ async def delete_daily_entry(entry_id: str, admin: dict = Depends(require_admin)
         raise HTTPException(status_code=404, detail="Entry not found")
     return {"message": "Entry deleted"}
 
+# CSV Upload for bulk import
+class CSVUploadResponse(BaseModel):
+    success: int
+    failed: int
+    errors: List[str]
+
+@api_router.post("/daily-entries/upload-csv/{campaign_id}")
+async def upload_csv_entries(campaign_id: str, file_content: str = Query(...), user: dict = Depends(get_current_user)):
+    """
+    Upload CSV data for bulk import.
+    CSV format: date,ad_spend,website_collection,qr_collection
+    Date format: YYYY-MM-DD or DD/MM/YYYY or DD-MM-YYYY
+    """
+    import csv
+    from io import StringIO
+    
+    campaign = await db.campaigns.find_one({"id": campaign_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    settings = await get_settings()
+    
+    success_count = 0
+    failed_count = 0
+    errors = []
+    
+    try:
+        reader = csv.DictReader(StringIO(file_content))
+        for row_num, row in enumerate(reader, start=2):
+            try:
+                # Parse date - support multiple formats
+                date_str = row.get('date', '').strip()
+                if not date_str:
+                    errors.append(f"Row {row_num}: Missing date")
+                    failed_count += 1
+                    continue
+                
+                # Try different date formats
+                parsed_date = None
+                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y']:
+                    try:
+                        parsed_date = datetime.strptime(date_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                
+                if not parsed_date:
+                    errors.append(f"Row {row_num}: Invalid date format '{date_str}'")
+                    failed_count += 1
+                    continue
+                
+                formatted_date = parsed_date.strftime('%Y-%m-%d')
+                
+                # Parse numeric values
+                try:
+                    ad_spend = float(row.get('ad_spend', 0) or 0)
+                    website_collection = float(row.get('website_collection', 0) or 0)
+                    qr_collection = float(row.get('qr_collection', 0) or 0)
+                except ValueError as e:
+                    errors.append(f"Row {row_num}: Invalid number format - {str(e)}")
+                    failed_count += 1
+                    continue
+                
+                # Check for duplicate
+                existing = await db.daily_entries.find_one({"campaign_id": campaign_id, "date": formatted_date})
+                if existing:
+                    errors.append(f"Row {row_num}: Entry for {formatted_date} already exists")
+                    failed_count += 1
+                    continue
+                
+                # Calculate values
+                entry_data = {
+                    "ad_spend": ad_spend,
+                    "website_collection": website_collection,
+                    "qr_collection": qr_collection
+                }
+                calculated = calculate_daily_values(entry_data, settings, campaign["commission_percentage"])
+                
+                # Insert entry
+                entry_id = str(ObjectId())
+                entry_doc = {
+                    "id": entry_id,
+                    "campaign_id": campaign_id,
+                    "date": formatted_date,
+                    **entry_data,
+                    **calculated,
+                    "created_by": user["id"],
+                    "created_at": datetime.now(timezone.utc)
+                }
+                await db.daily_entries.insert_one(entry_doc)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+                failed_count += 1
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(e)}")
+    
+    return {"success": success_count, "failed": failed_count, "errors": errors[:20]}
+
 # ============ MONTHLY SETTLEMENTS ============
 @api_router.get("/monthly-settlements")
 async def get_monthly_settlements(
@@ -600,18 +701,69 @@ async def delete_monthly_settlement(settlement_id: str, admin: dict = Depends(re
 # ============ DASHBOARD ============
 @api_router.get("/dashboard")
 async def get_dashboard(user: dict = Depends(get_current_user)):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    # This month range
+    this_month_start = now.replace(day=1).strftime("%Y-%m-%d")
+    this_month_end = today
+    
+    # Last month range
+    last_month_end = (now.replace(day=1) - timedelta(days=1))
+    last_month_start = last_month_end.replace(day=1).strftime("%Y-%m-%d")
+    last_month_end = last_month_end.strftime("%Y-%m-%d")
+    
     settings = await get_settings()
     
     # Today's global stats
     today_entries = await db.daily_entries.find({"date": today}, {"_id": 0}).to_list(1000)
     
-    total_profit_today = sum(e.get("net_profit", 0) for e in today_entries)
-    total_platform_profit_today = sum(e.get("platform_commission", 0) for e in today_entries)
-    total_revenue_today = sum(e.get("total_revenue", 0) for e in today_entries)
-    total_ad_spend_today = sum(e.get("ad_spend", 0) for e in today_entries)
-    total_website_collection = sum(e.get("website_collection", 0) for e in today_entries)
-    total_qr_collection = sum(e.get("qr_collection", 0) for e in today_entries)
+    # Yesterday's stats
+    yesterday_entries = await db.daily_entries.find({"date": yesterday}, {"_id": 0}).to_list(1000)
+    
+    # This month's stats
+    this_month_entries = await db.daily_entries.find({
+        "date": {"$gte": this_month_start, "$lte": this_month_end}
+    }, {"_id": 0}).to_list(10000)
+    
+    # Last month's stats
+    last_month_entries = await db.daily_entries.find({
+        "date": {"$gte": last_month_start, "$lte": last_month_end}
+    }, {"_id": 0}).to_list(10000)
+    
+    def calculate_stats(entries):
+        return {
+            "total_profit": round(sum(e.get("net_profit", 0) for e in entries), 2),
+            "platform_profit": round(sum(e.get("platform_commission", 0) for e in entries), 2),
+            "total_revenue": round(sum(e.get("total_revenue", 0) for e in entries), 2),
+            "total_ad_spend": round(sum(e.get("ad_spend", 0) for e in entries), 2),
+            "website_collection": round(sum(e.get("website_collection", 0) for e in entries), 2),
+            "qr_collection": round(sum(e.get("qr_collection", 0) for e in entries), 2)
+        }
+    
+    today_stats = calculate_stats(today_entries)
+    yesterday_stats = calculate_stats(yesterday_entries)
+    this_month_stats = calculate_stats(this_month_entries)
+    last_month_stats = calculate_stats(last_month_entries)
+    
+    # Calculate percentage changes
+    def calc_change(current, previous):
+        if previous == 0:
+            return 100 if current > 0 else 0
+        return round(((current - previous) / abs(previous)) * 100, 1)
+    
+    today_vs_yesterday = {
+        "profit_change": calc_change(today_stats["total_profit"], yesterday_stats["total_profit"]),
+        "revenue_change": calc_change(today_stats["total_revenue"], yesterday_stats["total_revenue"]),
+        "ad_spend_change": calc_change(today_stats["total_ad_spend"], yesterday_stats["total_ad_spend"])
+    }
+    
+    this_month_vs_last = {
+        "profit_change": calc_change(this_month_stats["total_profit"], last_month_stats["total_profit"]),
+        "revenue_change": calc_change(this_month_stats["total_revenue"], last_month_stats["total_revenue"]),
+        "ad_spend_change": calc_change(this_month_stats["total_ad_spend"], last_month_stats["total_ad_spend"])
+    }
     
     # Campaign-wise stats
     campaigns = await db.campaigns.find({"status": "active"}, {"_id": 0}).to_list(1000)
@@ -627,7 +779,7 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
         })
     
     # Get last 30 days trend data
-    thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    thirty_days_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
     trend_entries = await db.daily_entries.find({"date": {"$gte": thirty_days_ago}}, {"_id": 0}).to_list(10000)
     
     # Group by date for trends
@@ -643,14 +795,12 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     trend_list = sorted(trend_data.values(), key=lambda x: x["date"])
     
     return {
-        "today": {
-            "total_profit": round(total_profit_today, 2),
-            "platform_profit": round(total_platform_profit_today, 2),
-            "total_revenue": round(total_revenue_today, 2),
-            "total_ad_spend": round(total_ad_spend_today, 2),
-            "website_collection": round(total_website_collection, 2),
-            "qr_collection": round(total_qr_collection, 2)
-        },
+        "today": today_stats,
+        "yesterday": yesterday_stats,
+        "this_month": this_month_stats,
+        "last_month": last_month_stats,
+        "today_vs_yesterday": today_vs_yesterday,
+        "this_month_vs_last": this_month_vs_last,
         "campaign_stats": campaign_stats,
         "trend_data": trend_list,
         "settings": settings
@@ -897,12 +1047,15 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     elements.append(Paragraph(f"Month: {month_display} | Commission: {campaign['commission_percentage']}% | GST: {settings['gst_percentage']}% | Gateway: {settings['gateway_percentage']}%", subtitle_style))
     elements.append(Spacer(1, 20))
     
-    # Table data
-    table_data = [["Date", "Ad Spend", "Ad Spend+GST", "Website", "QR", "Gateway", "Revenue", "Net Profit", "Commission"]]
+    # Table data - include commission percentage in headers
+    comm_pct = campaign['commission_percentage']
+    after_comm_pct = 100 - comm_pct
+    table_data = [["Date", "Ad Spend", "Ad Spend+GST", "Website", "QR", "Gateway", "Revenue", "Net Profit", f"Commission ({comm_pct}%)", f"After Comm ({after_comm_pct}%)"]]
     
-    totals = {"ad_spend": 0, "ad_spend_with_gst": 0, "website": 0, "qr": 0, "gateway": 0, "revenue": 0, "profit": 0, "commission": 0}
+    totals = {"ad_spend": 0, "ad_spend_with_gst": 0, "website": 0, "qr": 0, "gateway": 0, "revenue": 0, "profit": 0, "commission": 0, "after_commission": 0}
     
     for entry in entries:
+        after_comm = entry['net_profit'] - entry['platform_commission']
         table_data.append([
             format_date_ordinal(entry["date"]),
             format_rupees(entry['ad_spend']),
@@ -912,7 +1065,8 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
             format_rupees(entry['gateway_charge']),
             format_rupees(entry['total_revenue']),
             format_rupees(entry['net_profit']),
-            format_rupees(entry['platform_commission'])
+            format_rupees(entry['platform_commission']),
+            format_rupees(after_comm)
         ])
         totals["ad_spend"] += entry["ad_spend"]
         totals["ad_spend_with_gst"] += entry["ad_spend_with_gst"]
@@ -922,6 +1076,7 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
         totals["revenue"] += entry["total_revenue"]
         totals["profit"] += entry["net_profit"]
         totals["commission"] += entry["platform_commission"]
+        totals["after_commission"] += after_comm
     
     # Totals row
     table_data.append([
@@ -933,7 +1088,8 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
         format_rupees(totals['gateway']),
         format_rupees(totals['revenue']),
         format_rupees(totals['profit']),
-        format_rupees(totals['commission'])
+        format_rupees(totals['commission']),
+        format_rupees(totals['after_commission'])
     ])
     
     # Create table
@@ -961,8 +1117,8 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     summary_data = [
         ["Summary", ""],
         ["Total Net Profit", format_rupees(totals['profit'])],
-        ["Platform Commission", format_rupees(totals['commission'])],
-        ["Profit After Commission", format_rupees(totals['profit'] - totals['commission'])],
+        [f"Platform Commission ({comm_pct}%)", format_rupees(totals['commission'])],
+        [f"After Commission ({after_comm_pct}%)", format_rupees(totals['after_commission'])],
         ["Ad Account Charges", format_rupees(ad_account)],
         ["Miscellaneous Expenses", format_rupees(misc)],
         ["Funds to be Given", format_rupees(funds_to_give)]

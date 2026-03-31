@@ -88,17 +88,26 @@ const DashboardPage = () => {
   }
 
   const today = data?.today || {};
+  const yesterday = data?.yesterday || {};
+  const thisMonth = data?.this_month || {};
+  const lastMonth = data?.last_month || {};
+  const todayVsYesterday = data?.today_vs_yesterday || {};
+  const thisMonthVsLast = data?.this_month_vs_last || {};
   const trendData = data?.trend_data || [];
   const campaignStats = data?.campaign_stats || [];
 
-  const statsCards = [
-    { title: 'Net Profit Today', value: today.total_profit, icon: TrendUp, color: today.total_profit >= 0 ? '#6AAF35' : '#EF4444' },
-    { title: 'Platform Profit', value: today.platform_profit, icon: Percent, color: '#F5A623' },
-    { title: 'Total Revenue', value: today.total_revenue, icon: CurrencyInr, color: '#6AAF35' },
-    { title: 'Ad Spend', value: today.total_ad_spend, icon: ChartLineUp, color: '#EF4444' },
-    { title: 'Website Collection', value: today.website_collection, icon: Desktop, color: '#3B82F6' },
-    { title: 'QR Collection', value: today.qr_collection, icon: QrCode, color: '#8B5CF6' },
-  ];
+  // Change indicator component
+  const ChangeIndicator = ({ change, inverse = false }) => {
+    const isPositive = inverse ? change < 0 : change > 0;
+    const color = isPositive ? '#6AAF35' : change === 0 ? '#78716C' : '#EF4444';
+    const Icon = change >= 0 ? TrendUp : TrendDown;
+    return (
+      <div className="flex items-center gap-1 text-xs" style={{ color }}>
+        <Icon size={14} weight="bold" />
+        <span>{Math.abs(change)}%</span>
+      </div>
+    );
+  };
 
   const pieData = [
     { name: 'Website', value: today.website_collection || 0 },
@@ -119,24 +128,120 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Today's Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {statsCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="card-hover border-stone-200" data-testid={`stat-card-${index}`}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-[#78716C] uppercase tracking-wider">{stat.title}</span>
-                  <Icon size={20} style={{ color: stat.color }} weight="duotone" />
-                </div>
-                <p className="text-xl font-bold" style={{ color: stat.color }}>
-                  {formatCurrency(stat.value || 0)}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Today vs Yesterday Comparison */}
+      <div>
+        <h2 className="text-lg font-semibold text-[#1C1917] mb-3">Today vs Yesterday</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="card-hover border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Profit</span>
+                <ChangeIndicator change={todayVsYesterday.profit_change || 0} />
+              </div>
+              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(today.total_profit || 0)}</p>
+              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_profit || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Revenue</span>
+                <ChangeIndicator change={todayVsYesterday.revenue_change || 0} />
+              </div>
+              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(today.total_revenue || 0)}</p>
+              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_revenue || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Ad Spend</span>
+                <ChangeIndicator change={todayVsYesterday.ad_spend_change || 0} inverse />
+              </div>
+              <p className="text-xl font-bold text-red-500">{formatCurrency(today.total_ad_spend || 0)}</p>
+              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_ad_spend || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Platform Profit</span>
+                <Percent size={16} className="text-[#F5A623]" />
+              </div>
+              <p className="text-xl font-bold text-[#F5A623]">{formatCurrency(today.platform_profit || 0)}</p>
+              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.platform_profit || 0)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* This Month vs Last Month Comparison */}
+      <div>
+        <h2 className="text-lg font-semibold text-[#1C1917] mb-3">This Month vs Last Month</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="card-hover border-stone-200 bg-gradient-to-br from-[#6AAF35]/5 to-transparent">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Profit</span>
+                <ChangeIndicator change={thisMonthVsLast.profit_change || 0} />
+              </div>
+              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(thisMonth.total_profit || 0)}</p>
+              <p className="text-xs text-[#78716C]">Last Month: {formatCurrency(lastMonth.total_profit || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200 bg-gradient-to-br from-[#6AAF35]/5 to-transparent">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Revenue</span>
+                <ChangeIndicator change={thisMonthVsLast.revenue_change || 0} />
+              </div>
+              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(thisMonth.total_revenue || 0)}</p>
+              <p className="text-xs text-[#78716C]">Last Month: {formatCurrency(lastMonth.total_revenue || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200 bg-gradient-to-br from-red-500/5 to-transparent">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Ad Spend</span>
+                <ChangeIndicator change={thisMonthVsLast.ad_spend_change || 0} inverse />
+              </div>
+              <p className="text-xl font-bold text-red-500">{formatCurrency(thisMonth.total_ad_spend || 0)}</p>
+              <p className="text-xs text-[#78716C]">Last Month: {formatCurrency(lastMonth.total_ad_spend || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200 bg-gradient-to-br from-[#F5A623]/5 to-transparent">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Platform Profit</span>
+                <Percent size={16} className="text-[#F5A623]" />
+              </div>
+              <p className="text-xl font-bold text-[#F5A623]">{formatCurrency(thisMonth.platform_profit || 0)}</p>
+              <p className="text-xs text-[#78716C]">Last Month: {formatCurrency(lastMonth.platform_profit || 0)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Collection Sources Today */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="card-hover border-stone-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Desktop size={20} className="text-[#3B82F6]" />
+              <span className="text-xs font-medium text-[#78716C] uppercase">Website Collection Today</span>
+            </div>
+            <p className="text-xl font-bold text-[#3B82F6]">{formatCurrency(today.website_collection || 0)}</p>
+          </CardContent>
+        </Card>
+        <Card className="card-hover border-stone-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <QrCode size={20} className="text-[#8B5CF6]" />
+              <span className="text-xs font-medium text-[#78716C] uppercase">QR Collection Today</span>
+            </div>
+            <p className="text-xl font-bold text-[#8B5CF6]">{formatCurrency(today.qr_collection || 0)}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Charts Row 1 */}
