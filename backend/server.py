@@ -802,6 +802,27 @@ async def get_stakeholder_earnings(
     }
 
 # ============ PDF GENERATION ============
+def format_date_ordinal(date_str):
+    """Format date as '1st April, 2026'"""
+    from datetime import datetime
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+    day = date_obj.day
+    if 11 <= day <= 13:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    return f"{day}{suffix} {date_obj.strftime('%B, %Y')}"
+
+def format_month_name(month_str):
+    """Format month as 'March, 2026'"""
+    from datetime import datetime
+    date_obj = datetime.strptime(f"{month_str}-01", "%Y-%m-%d")
+    return date_obj.strftime("%B, %Y")
+
+def format_rupees(value):
+    """Format currency with Rs. prefix (ASCII safe for PDF)"""
+    return f"Rs. {value:,.2f}"
+
 @api_router.get("/generate-pdf/{campaign_id}/{report_month}")
 async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends(get_current_user)):
     campaign = await db.campaigns.find_one({"id": campaign_id}, {"_id": 0})
@@ -829,6 +850,9 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
         "report_month": report_month
     }, {"_id": 0})
     
+    # Format month name for display
+    month_display = format_month_name(report_month)
+    
     # Create PDF
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
@@ -842,7 +866,7 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     # Header
     elements.append(Paragraph(f"Umeed Now Foundation - Monthly Report", title_style))
     elements.append(Paragraph(f"Campaign: {campaign['name']}", subtitle_style))
-    elements.append(Paragraph(f"Month: {report_month} | Commission: {campaign['commission_percentage']}% | GST: {settings['gst_percentage']}% | Gateway: {settings['gateway_percentage']}%", subtitle_style))
+    elements.append(Paragraph(f"Month: {month_display} | Commission: {campaign['commission_percentage']}% | GST: {settings['gst_percentage']}% | Gateway: {settings['gateway_percentage']}%", subtitle_style))
     elements.append(Spacer(1, 20))
     
     # Table data
@@ -852,15 +876,15 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     
     for entry in entries:
         table_data.append([
-            entry["date"],
-            f"₹{entry['ad_spend']:,.2f}",
-            f"₹{entry['ad_spend_with_gst']:,.2f}",
-            f"₹{entry['website_collection']:,.2f}",
-            f"₹{entry['qr_collection']:,.2f}",
-            f"₹{entry['gateway_charge']:,.2f}",
-            f"₹{entry['total_revenue']:,.2f}",
-            f"₹{entry['net_profit']:,.2f}",
-            f"₹{entry['platform_commission']:,.2f}"
+            format_date_ordinal(entry["date"]),
+            format_rupees(entry['ad_spend']),
+            format_rupees(entry['ad_spend_with_gst']),
+            format_rupees(entry['website_collection']),
+            format_rupees(entry['qr_collection']),
+            format_rupees(entry['gateway_charge']),
+            format_rupees(entry['total_revenue']),
+            format_rupees(entry['net_profit']),
+            format_rupees(entry['platform_commission'])
         ])
         totals["ad_spend"] += entry["ad_spend"]
         totals["ad_spend_with_gst"] += entry["ad_spend_with_gst"]
@@ -874,14 +898,14 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     # Totals row
     table_data.append([
         "TOTAL",
-        f"₹{totals['ad_spend']:,.2f}",
-        f"₹{totals['ad_spend_with_gst']:,.2f}",
-        f"₹{totals['website']:,.2f}",
-        f"₹{totals['qr']:,.2f}",
-        f"₹{totals['gateway']:,.2f}",
-        f"₹{totals['revenue']:,.2f}",
-        f"₹{totals['profit']:,.2f}",
-        f"₹{totals['commission']:,.2f}"
+        format_rupees(totals['ad_spend']),
+        format_rupees(totals['ad_spend_with_gst']),
+        format_rupees(totals['website']),
+        format_rupees(totals['qr']),
+        format_rupees(totals['gateway']),
+        format_rupees(totals['revenue']),
+        format_rupees(totals['profit']),
+        format_rupees(totals['commission'])
     ])
     
     # Create table
@@ -908,11 +932,12 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     
     summary_data = [
         ["Summary", ""],
-        ["Total Net Profit", f"₹{totals['profit']:,.2f}"],
-        ["Platform Commission", f"₹{totals['commission']:,.2f}"],
-        ["Ad Account Charges", f"₹{ad_account:,.2f}"],
-        ["Miscellaneous Expenses", f"₹{misc:,.2f}"],
-        ["Funds to be Given", f"₹{funds_to_give:,.2f}"]
+        ["Total Net Profit", format_rupees(totals['profit'])],
+        ["Platform Commission", format_rupees(totals['commission'])],
+        ["Profit After Commission", format_rupees(totals['profit'] - totals['commission'])],
+        ["Ad Account Charges", format_rupees(ad_account)],
+        ["Miscellaneous Expenses", format_rupees(misc)],
+        ["Funds to be Given", format_rupees(funds_to_give)]
     ]
     
     summary_table = Table(summary_data, colWidths=[200, 150])
@@ -932,7 +957,11 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     doc.build(elements)
     buffer.seek(0)
     
-    filename = f"{campaign['name'].replace(' ', '_')}_{report_month}_report.pdf"
+    # Create filename with campaign name and month name (e.g., Medical_Emergency_Rahul_March_2026.pdf)
+    safe_campaign_name = campaign['name'].replace(' ', '_').replace('-', '_')
+    month_for_filename = format_month_name(report_month).replace(', ', '_').replace(' ', '_')
+    filename = f"{safe_campaign_name}_{month_for_filename}.pdf"
+    
     return StreamingResponse(
         buffer,
         media_type="application/pdf",

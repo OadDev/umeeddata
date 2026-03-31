@@ -51,7 +51,7 @@ const MonthlyReportsPage = () => {
     }
   };
 
-  const downloadPDF = async (campaignId, month) => {
+  const downloadPDF = async (campaignId, month, campaignName) => {
     try {
       const response = await axios.get(`${API}/generate-pdf/${campaignId}/${month}`, {
         responseType: 'blob'
@@ -60,7 +60,10 @@ const MonthlyReportsPage = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `report-${month}.pdf`;
+      // Create filename with campaign name and month
+      const monthName = formatMonthFull(month);
+      const safeName = campaignName.replace(/\s+/g, '_').replace(/-/g, '_');
+      a.download = `${safeName}_${monthName.replace(', ', '_')}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
       toast.success('PDF downloaded successfully');
@@ -82,6 +85,11 @@ const MonthlyReportsPage = () => {
     return new Date(year, month - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
   };
 
+  const formatMonthFull = (monthStr) => {
+    const [year, month] = monthStr.split('-');
+    return new Date(year, month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  };
+
   // Get unique months from reports
   const getMonthOptions = () => {
     const months = [...new Set(reports.map(r => r.month))].sort().reverse();
@@ -95,10 +103,11 @@ const MonthlyReportsPage = () => {
     gateway: acc.gateway + r.gateway_charge,
     profit: acc.profit + r.net_profit,
     commission: acc.commission + r.commission,
+    after_commission: acc.after_commission + (r.net_profit - r.commission),
     ad_account: acc.ad_account + r.ad_account_charges,
     misc: acc.misc + r.miscellaneous_expenses,
     funds_to_give: acc.funds_to_give + r.funds_to_give
-  }), { funds_raised: 0, ad_cost: 0, gateway: 0, profit: 0, commission: 0, ad_account: 0, misc: 0, funds_to_give: 0 });
+  }), { funds_raised: 0, ad_cost: 0, gateway: 0, profit: 0, commission: 0, after_commission: 0, ad_account: 0, misc: 0, funds_to_give: 0 });
 
   if (loading) {
     return (
@@ -174,6 +183,7 @@ const MonthlyReportsPage = () => {
                   <TableHead className="text-right">Gateway</TableHead>
                   <TableHead className="text-right">Net Profit</TableHead>
                   <TableHead className="text-right">Commission</TableHead>
+                  <TableHead className="text-right">After Commission</TableHead>
                   <TableHead className="text-right">Ad Account</TableHead>
                   <TableHead className="text-right">Misc</TableHead>
                   <TableHead className="text-right">To Give</TableHead>
@@ -184,7 +194,7 @@ const MonthlyReportsPage = () => {
               <TableBody>
                 {reports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-[#78716C]">
+                    <TableCell colSpan={13} className="text-center py-8 text-[#78716C]">
                       No monthly reports found
                     </TableCell>
                   </TableRow>
@@ -201,6 +211,9 @@ const MonthlyReportsPage = () => {
                           {formatCurrency(report.net_profit)}
                         </TableCell>
                         <TableCell className="text-right text-[#F5A623]">{formatCurrency(report.commission)}</TableCell>
+                        <TableCell className={`text-right font-medium ${(report.net_profit - report.commission) >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
+                          {formatCurrency(report.net_profit - report.commission)}
+                        </TableCell>
                         <TableCell className="text-right text-red-500">{formatCurrency(report.ad_account_charges)}</TableCell>
                         <TableCell className="text-right text-red-500">{formatCurrency(report.miscellaneous_expenses)}</TableCell>
                         <TableCell className={`text-right font-bold ${report.funds_to_give >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
@@ -217,7 +230,7 @@ const MonthlyReportsPage = () => {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => downloadPDF(report.campaign_id, report.month)}
+                            onClick={() => downloadPDF(report.campaign_id, report.month, report.campaign_name)}
                             data-testid={`download-pdf-${report.campaign_id}-${report.month}`}
                           >
                             <FilePdf size={20} className="text-red-500" />
@@ -235,6 +248,9 @@ const MonthlyReportsPage = () => {
                         {formatCurrency(totals.profit)}
                       </TableCell>
                       <TableCell className="text-right text-[#F5A623]">{formatCurrency(totals.commission)}</TableCell>
+                      <TableCell className={`text-right ${totals.after_commission >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
+                        {formatCurrency(totals.after_commission)}
+                      </TableCell>
                       <TableCell className="text-right text-red-500">{formatCurrency(totals.ad_account)}</TableCell>
                       <TableCell className="text-right text-red-500">{formatCurrency(totals.misc)}</TableCell>
                       <TableCell className={`text-right ${totals.funds_to_give >= 0 ? 'text-[#6AAF35]' : 'text-red-500'}`}>
