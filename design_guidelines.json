@@ -1,0 +1,71 @@
+{
+  "theme": "LIGHT",
+  "archetype": "1 (Organic & Earthy)",
+  "colors": {
+    "primary": "#6AAF35",
+    "accent": "#F5A623",
+    "background": "#FAFAF9",
+    "surface": "#FFFFFF",
+    "text": {
+      "heading": "#1C1917",
+      "body": "#44403C",
+      "muted": "#78716C"
+    },
+    "borders": "#E7E5E4",
+    "success": "#6AAF35",
+    "warning": "#F5A623",
+    "danger": "#EF4444"
+  },
+  "typography": {
+    "heading_font": "Work Sans",
+    "body_font": "IBM Plex Sans",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight font-bold",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-semibold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-semibold",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm",
+      "labels": "text-xs tracking-[0.2em] uppercase font-semibold text-muted-foreground"
+    }
+  },
+  "spacing_and_layout": {
+    "grid_mode": "Control Room Grid",
+    "container_padding": "p-6 sm:p-8",
+    "widget_gap": "gap-4 sm:gap-6",
+    "radius": "rounded-lg",
+    "borders": "1px solid border-border",
+    "shadows": "shadow-sm"
+  },
+  "surfaces": {
+    "dashboard_cards": "Flat solid background (bg-white), 1px subtle border (border-stone-200), no shadow by default, hover: shadow-sm, hover:-translate-y-[2px] transition-transform",
+    "headers": "Solid background with hard bottom border, sticky top-0, z-50",
+    "sidebar": "bg-stone-50 border-r border-stone-200"
+  },
+  "components": {
+    "buttons": "Primary buttons: bg-[#6AAF35] hover:bg-[#5C982E] text-white. Secondary: bg-white border border-[#E7E5E4] text-[#1C1917] hover:bg-stone-100",
+    "tables": "Shadcn UI tables with dense padding. Use border-collapse. Headers should have muted text and uppercase tracking. Sticky headers for long tables.",
+    "inputs": "Shadcn UI inputs. focus:ring-2 focus:ring-[#6AAF35]/30 focus:border-[#6AAF35]",
+    "charts": "Shadcn charts (Recharts). Use #6AAF35 for revenue/profit, #F5A623 for secondary metrics or comparison."
+  },
+  "interactions_and_motion": {
+    "hover_states": "All interactive elements must change state on hover (e.g. darker background or slight shadow lift)",
+    "transitions": "transition-all duration-200 ease-in-out",
+    "loading": "Use skeleton loaders (Shadcn Skeleton) instead of spinners where possible"
+  },
+  "icons_library": "@phosphor-icons/react",
+  "media": {
+    "login_background": "https://images.unsplash.com/photo-1763652387618-556b98d819bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdyZWVuJTIweWVsbG93JTIwZ3JhZGllbnQlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3NDk4ODMyN3ww&ixlib=rb-4.1.0&q=85",
+    "nature_hope_bg": "https://images.unsplash.com/photo-1582061330713-dd8fe329ebbf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxjb21tdW5pdHklMjBuYXR1cmUlMjBob3BlJTIwc3VubGlnaHR8ZW58MHx8fHwxNzc0OTg4MzMzfDA&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Ensure all interactive elements have data-testid attributes.",
+    "Implement pure React + Tailwind for layout, use Shadcn components for complex interactions like DatePickers, Tables, and Selects.",
+    "Configure Tailwind with the exact brand colors: primary: '#6AAF35', accent: '#F5A623'.",
+    "Dashboard should be strictly mobile-responsive, prioritizing the 'Control Room' grid on large screens and 'grid-cols-1' on mobile.",
+    "Use Phosphor Icons (Regular or Duotone weight) for dashboard iconography.",
+    "Ensure high contrast text (APCA standard) over any background. #FAFAF9 is the base background, cards are #FFFFFF.",
+    "For PDF generation, keep the layout functional and print-friendly (hide non-essential UI elements like sidebars when generating).",
+    "Use Recharts (via Shadcn) for revenue trends, profit trends, campaign comparison, and source split pie charts."
+  ]
+}
