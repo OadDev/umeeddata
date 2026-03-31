@@ -13,7 +13,8 @@ import {
   SignOut,
   List,
   X,
-  Coins
+  Coins,
+  UserCircle
 } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
@@ -100,7 +101,12 @@ const DashboardLayout = ({ children }) => {
 
       {/* User section */}
       <div className="p-4 border-t border-stone-200">
-        <div className="flex items-center gap-3 mb-3">
+        <Link 
+          to="/profile" 
+          onClick={() => setSidebarOpen(false)}
+          className="flex items-center gap-3 mb-3 p-2 -mx-2 rounded-lg hover:bg-stone-100 transition-colors"
+          data-testid="nav-profile"
+        >
           <div className="w-10 h-10 rounded-full bg-[#6AAF35] flex items-center justify-center text-white font-semibold">
             {user?.name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
@@ -108,7 +114,8 @@ const DashboardLayout = ({ children }) => {
             <p className="text-sm font-medium text-[#1C1917] truncate">{user?.name}</p>
             <p className="text-xs text-[#78716C] truncate">{user?.email}</p>
           </div>
-        </div>
+          <UserCircle size={20} className="text-[#78716C]" />
+        </Link>
         <Button
           variant="outline"
           size="sm"

@@ -16,6 +16,7 @@ import MonthlyReportsPage from './pages/MonthlyReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
 import StakeholderEarningsPage from './pages/StakeholderEarningsPage';
+import ProfilePage from './pages/ProfilePage';
 
 // Layout
 import DashboardLayout from './components/DashboardLayout';
@@ -201,6 +202,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <StakeholderEarningsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ProfilePage />
                 </DashboardLayout>
               </ProtectedRoute>
             }
