@@ -104,6 +104,20 @@ class MonthlySettlementUpdate(BaseModel):
     miscellaneous_expenses: Optional[float] = None
     notes: Optional[str] = None
 
+class DisbursementCreate(BaseModel):
+    campaign_id: str
+    report_month: str  # YYYY-MM format
+    amount: float = Field(gt=0)
+    date: str  # YYYY-MM-DD format
+    transfer_mode: str  # Bank Transfer, UPI, Cheque, Cash, Other
+    remarks: Optional[str] = ""
+
+class DisbursementUpdate(BaseModel):
+    amount: Optional[float] = Field(default=None, gt=0)
+    date: Optional[str] = None
+    transfer_mode: Optional[str] = None
+    remarks: Optional[str] = None
+
 class SettingsUpdate(BaseModel):
     gst_percentage: Optional[float] = None
     gateway_percentage: Optional[float] = None
@@ -1160,6 +1174,98 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
+# ============ FUND DISBURSEMENTS ============
+@api_router.get("/disbursements")
+async def get_disbursements(
+    campaign_id: Optional[str] = None,
+    report_month: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    query = {}
+    if campaign_id:
+        query["campaign_id"] = campaign_id
+    if report_month:
+        query["report_month"] = report_month
+    
+    disbursements = await db.disbursements.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
+    return disbursements
+
+@api_router.get("/disbursements/summary")
+async def get_disbursement_summary(
+    campaign_id: Optional[str] = None,
+    report_month: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get summary: funds_to_give, total_disbursed, balance per campaign-month"""
+    # Get monthly reports to know funds_to_give
+    reports = await get_monthly_reports(campaign_id=campaign_id, report_month=report_month, user=user)
+    
+    summary = []
+    for report in reports:
+        # Get total disbursed for this campaign-month
+        pipeline = [
+            {"$match": {"campaign_id": report["campaign_id"], "report_month": report["month"]}},
+            {"$group": {"_id": None, "total_disbursed": {"$sum": "$amount"}}}
+        ]
+        result = await db.disbursements.aggregate(pipeline).to_list(1)
+        total_disbursed = round(result[0]["total_disbursed"], 2) if result else 0
+        balance = round(report["funds_to_give"] - total_disbursed, 2)
+        
+        summary.append({
+            "campaign_id": report["campaign_id"],
+            "campaign_name": report["campaign_name"],
+            "month": report["month"],
+            "funds_to_give": report["funds_to_give"],
+            "total_disbursed": total_disbursed,
+            "balance": balance
+        })
+    
+    return summary
+
+@api_router.post("/disbursements")
+async def create_disbursement(data: DisbursementCreate, user: dict = Depends(require_admin)):
+    # Verify campaign exists
+    campaign = await db.campaigns.find_one({"id": data.campaign_id}, {"_id": 0})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    disbursement_id = str(ObjectId())
+    doc = {
+        "id": disbursement_id,
+        "campaign_id": data.campaign_id,
+        "report_month": data.report_month,
+        "amount": data.amount,
+        "date": data.date,
+        "transfer_mode": data.transfer_mode,
+        "remarks": data.remarks or "",
+        "created_by": user["id"],
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.disbursements.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.put("/disbursements/{disbursement_id}")
+async def update_disbursement(disbursement_id: str, data: DisbursementUpdate, user: dict = Depends(require_admin)):
+    existing = await db.disbursements.find_one({"id": disbursement_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Disbursement not found")
+    
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    await db.disbursements.update_one({"id": disbursement_id}, {"$set": update_data})
+    updated = await db.disbursements.find_one({"id": disbursement_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/disbursements/{disbursement_id}")
+async def delete_disbursement(disbursement_id: str, user: dict = Depends(require_admin)):
+    result = await db.disbursements.delete_one({"id": disbursement_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Disbursement not found")
+    return {"message": "Disbursement deleted"}
+
 # ============ EXCEL EXPORT ============
 @api_router.get("/generate-excel/{campaign_id}/{report_month}")
 async def generate_excel(campaign_id: str, report_month: str, user: dict = Depends(get_current_user)):
@@ -1349,6 +1455,7 @@ async def startup():
     await db.daily_entries.create_index([("campaign_id", 1), ("date", 1)], unique=True)
     await db.monthly_settlements.create_index([("campaign_id", 1), ("report_month", 1)], unique=True)
     await db.login_attempts.create_index("identifier")
+    await db.disbursements.create_index([("campaign_id", 1), ("report_month", 1)])
     
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@umeednow.org")

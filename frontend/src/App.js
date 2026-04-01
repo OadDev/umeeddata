@@ -16,6 +16,7 @@ import MonthlyReportsPage from './pages/MonthlyReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
 import StakeholderEarningsPage from './pages/StakeholderEarningsPage';
+import FundDisbursementsPage from './pages/FundDisbursementsPage';
 import ProfilePage from './pages/ProfilePage';
 
 // Layout
@@ -202,6 +203,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <StakeholderEarningsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/fund-disbursements"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <FundDisbursementsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

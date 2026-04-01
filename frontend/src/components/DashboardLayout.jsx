@@ -14,6 +14,7 @@ import {
   List,
   X,
   Coins,
+  Wallet,
   UserCircle
 } from '@phosphor-icons/react';
 import { Button } from './ui/button';
@@ -35,6 +36,7 @@ const DashboardLayout = ({ children }) => {
     { name: 'Reports', href: '/reports', icon: ChartBar },
     { name: 'Monthly Reports', href: '/monthly-reports', icon: ChartPie },
     { name: 'Stakeholder Earnings', href: '/stakeholder-earnings', icon: Coins },
+    { name: 'Fund Disbursements', href: '/fund-disbursements', icon: Wallet },
   ];
 
   const adminNavigation = [
