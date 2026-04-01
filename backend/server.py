@@ -21,6 +21,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -980,16 +983,12 @@ async def get_stakeholder_earnings(
     }
 
 # ============ PDF GENERATION ============
-def format_date_ordinal(date_str):
-    """Format date as '1st April, 2026'"""
+def format_date_short(date_str):
+    """Format date as '1 Feb 26' for PDF table"""
     from datetime import datetime
     date_obj = datetime.strptime(date_str, "%Y-%m-%d")
     day = date_obj.day
-    if 11 <= day <= 13:
-        suffix = 'th'
-    else:
-        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
-    return f"{day}{suffix} {date_obj.strftime('%B, %Y')}"
+    return f"{day} {date_obj.strftime('%b %y')}"
 
 def format_month_name(month_str):
     """Format month as 'March, 2026'"""
@@ -997,8 +996,12 @@ def format_month_name(month_str):
     date_obj = datetime.strptime(f"{month_str}-01", "%Y-%m-%d")
     return date_obj.strftime("%B, %Y")
 
-def format_rupees(value):
-    """Format currency with Rs. prefix (ASCII safe for PDF)"""
+def format_rupees_compact(value):
+    """Format currency compactly for PDF table"""
+    return f"{value:,.0f}"
+
+def format_rupees_full(value):
+    """Format currency with Rs. prefix for summary"""
     return f"Rs. {value:,.2f}"
 
 @api_router.get("/generate-pdf/{campaign_id}/{report_month}")
@@ -1031,13 +1034,13 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     # Format month name for display
     month_display = format_month_name(report_month)
     
-    # Create PDF
+    # Create PDF with wider margins
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=15, leftMargin=15, topMargin=25, bottomMargin=25)
     
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, alignment=TA_CENTER, spaceAfter=20, textColor=colors.HexColor('#6AAF35'))
-    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=12, alignment=TA_CENTER, spaceAfter=10)
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=16, alignment=TA_CENTER, spaceAfter=15, textColor=colors.HexColor('#6AAF35'))
+    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, alignment=TA_CENTER, spaceAfter=8)
     
     elements = []
     
@@ -1045,28 +1048,28 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     elements.append(Paragraph(f"Umeed Now Foundation - Monthly Report", title_style))
     elements.append(Paragraph(f"Campaign: {campaign['name']}", subtitle_style))
     elements.append(Paragraph(f"Month: {month_display} | Commission: {campaign['commission_percentage']}% | GST: {settings['gst_percentage']}% | Gateway: {settings['gateway_percentage']}%", subtitle_style))
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 10))
     
     # Table data - include commission percentage in headers
     comm_pct = campaign['commission_percentage']
     after_comm_pct = 100 - comm_pct
-    table_data = [["Date", "Ad Spend", "Ad Spend+GST", "Website", "QR", "Gateway", "Revenue", "Net Profit", f"Commission ({comm_pct}%)", f"After Comm ({after_comm_pct}%)"]]
+    table_data = [["Date", "Ad Spend", "Ad+GST", "Website", "QR", "Gateway", "Revenue", "Profit", f"Comm({comm_pct}%)", f"After({after_comm_pct}%)"]]
     
     totals = {"ad_spend": 0, "ad_spend_with_gst": 0, "website": 0, "qr": 0, "gateway": 0, "revenue": 0, "profit": 0, "commission": 0, "after_commission": 0}
     
     for entry in entries:
         after_comm = entry['net_profit'] - entry['platform_commission']
         table_data.append([
-            format_date_ordinal(entry["date"]),
-            format_rupees(entry['ad_spend']),
-            format_rupees(entry['ad_spend_with_gst']),
-            format_rupees(entry['website_collection']),
-            format_rupees(entry['qr_collection']),
-            format_rupees(entry['gateway_charge']),
-            format_rupees(entry['total_revenue']),
-            format_rupees(entry['net_profit']),
-            format_rupees(entry['platform_commission']),
-            format_rupees(after_comm)
+            format_date_short(entry["date"]),
+            format_rupees_compact(entry['ad_spend']),
+            format_rupees_compact(entry['ad_spend_with_gst']),
+            format_rupees_compact(entry['website_collection']),
+            format_rupees_compact(entry['qr_collection']),
+            format_rupees_compact(entry['gateway_charge']),
+            format_rupees_compact(entry['total_revenue']),
+            format_rupees_compact(entry['net_profit']),
+            format_rupees_compact(entry['platform_commission']),
+            format_rupees_compact(after_comm)
         ])
         totals["ad_spend"] += entry["ad_spend"]
         totals["ad_spend_with_gst"] += entry["ad_spend_with_gst"]
@@ -1081,33 +1084,38 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     # Totals row
     table_data.append([
         "TOTAL",
-        format_rupees(totals['ad_spend']),
-        format_rupees(totals['ad_spend_with_gst']),
-        format_rupees(totals['website']),
-        format_rupees(totals['qr']),
-        format_rupees(totals['gateway']),
-        format_rupees(totals['revenue']),
-        format_rupees(totals['profit']),
-        format_rupees(totals['commission']),
-        format_rupees(totals['after_commission'])
+        format_rupees_compact(totals['ad_spend']),
+        format_rupees_compact(totals['ad_spend_with_gst']),
+        format_rupees_compact(totals['website']),
+        format_rupees_compact(totals['qr']),
+        format_rupees_compact(totals['gateway']),
+        format_rupees_compact(totals['revenue']),
+        format_rupees_compact(totals['profit']),
+        format_rupees_compact(totals['commission']),
+        format_rupees_compact(totals['after_commission'])
     ])
     
-    # Create table
-    table = Table(table_data, repeatRows=1)
+    # Create table with explicit column widths to fit landscape A4 (842 points width - 30 margins = 812)
+    col_widths = [55, 70, 70, 75, 60, 60, 75, 75, 75, 75]  # Total ~690 points
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6AAF35')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),  # Date column left aligned
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
         ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#F5F5F5')),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#FAFAFA')]),
     ]))
     elements.append(table)
-    elements.append(Spacer(1, 30))
+    elements.append(Spacer(1, 20))
     
     # Summary section
     ad_account = settlement.get("ad_account_charges", 0) if settlement else 0
@@ -1116,12 +1124,12 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     
     summary_data = [
         ["Summary", ""],
-        ["Total Net Profit", format_rupees(totals['profit'])],
-        [f"Platform Commission ({comm_pct}%)", format_rupees(totals['commission'])],
-        [f"After Commission ({after_comm_pct}%)", format_rupees(totals['after_commission'])],
-        ["Ad Account Charges", format_rupees(ad_account)],
-        ["Miscellaneous Expenses", format_rupees(misc)],
-        ["Funds to be Given", format_rupees(funds_to_give)]
+        ["Total Net Profit", format_rupees_full(totals['profit'])],
+        [f"Platform Commission ({comm_pct}%)", format_rupees_full(totals['commission'])],
+        [f"After Commission ({after_comm_pct}%)", format_rupees_full(totals['after_commission'])],
+        ["Ad Account Charges", format_rupees_full(ad_account)],
+        ["Miscellaneous Expenses", format_rupees_full(misc)],
+        ["Funds to be Given", format_rupees_full(funds_to_give)]
     ]
     
     summary_table = Table(summary_data, colWidths=[200, 150])
@@ -1149,6 +1157,186 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# ============ EXCEL EXPORT ============
+@api_router.get("/generate-excel/{campaign_id}/{report_month}")
+async def generate_excel(campaign_id: str, report_month: str, user: dict = Depends(get_current_user)):
+    campaign = await db.campaigns.find_one({"id": campaign_id}, {"_id": 0})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    settings = await get_settings()
+    
+    # Get entries for this month
+    month_start = f"{report_month}-01"
+    year, mon = int(report_month[:4]), int(report_month[5:7])
+    if mon == 12:
+        month_end = f"{year+1}-01-01"
+    else:
+        month_end = f"{year}-{mon+1:02d}-01"
+    
+    entries = await db.daily_entries.find({
+        "campaign_id": campaign_id,
+        "date": {"$gte": month_start, "$lt": month_end}
+    }, {"_id": 0}).sort("date", 1).to_list(1000)
+    
+    settlement = await db.monthly_settlements.find_one({
+        "campaign_id": campaign_id,
+        "report_month": report_month
+    }, {"_id": 0})
+    
+    month_display = format_month_name(report_month)
+    comm_pct = campaign['commission_percentage']
+    after_comm_pct = 100 - comm_pct
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Monthly Report"
+    
+    # Styles
+    header_font = Font(name='Calibri', bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='6AAF35', end_color='6AAF35', fill_type='solid')
+    title_font = Font(name='Calibri', bold=True, size=14, color='6AAF35')
+    subtitle_font = Font(name='Calibri', size=11, color='444444')
+    currency_format = '#,##0.00'
+    total_fill = PatternFill(start_color='F5F5F5', end_color='F5F5F5', fill_type='solid')
+    total_font = Font(name='Calibri', bold=True, size=11)
+    summary_header_fill = PatternFill(start_color='6AAF35', end_color='6AAF35', fill_type='solid')
+    summary_highlight_fill = PatternFill(start_color='E8F5E9', end_color='E8F5E9', fill_type='solid')
+    thin_border = Border(
+        left=Side(style='thin', color='CCCCCC'),
+        right=Side(style='thin', color='CCCCCC'),
+        top=Side(style='thin', color='CCCCCC'),
+        bottom=Side(style='thin', color='CCCCCC')
+    )
+    
+    # Title section
+    ws.merge_cells('A1:J1')
+    ws['A1'] = 'Umeed Now Foundation - Monthly Report'
+    ws['A1'].font = title_font
+    ws['A1'].alignment = Alignment(horizontal='center')
+    
+    ws.merge_cells('A2:J2')
+    ws['A2'] = f'Campaign: {campaign["name"]}'
+    ws['A2'].font = subtitle_font
+    ws['A2'].alignment = Alignment(horizontal='center')
+    
+    ws.merge_cells('A3:J3')
+    ws['A3'] = f'Month: {month_display} | Commission: {comm_pct}% | GST: {settings["gst_percentage"]}% | Gateway: {settings["gateway_percentage"]}%'
+    ws['A3'].font = subtitle_font
+    ws['A3'].alignment = Alignment(horizontal='center')
+    
+    # Daily entries table header (row 5)
+    headers = ['Date', 'Ad Spend', 'Ad+GST', 'Website', 'QR', 'Gateway', 'Revenue', 'Profit', f'Comm({comm_pct}%)', f'After({after_comm_pct}%)']
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=5, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+    
+    # Data rows
+    totals = {"ad_spend": 0, "ad_spend_with_gst": 0, "website": 0, "qr": 0, "gateway": 0, "revenue": 0, "profit": 0, "commission": 0, "after_commission": 0}
+    
+    row = 6
+    for entry in entries:
+        after_comm = entry['net_profit'] - entry['platform_commission']
+        date_obj = datetime.strptime(entry["date"], "%Y-%m-%d")
+        
+        ws.cell(row=row, column=1, value=date_obj.strftime("%d %b %Y")).border = thin_border
+        ws.cell(row=row, column=2, value=round(entry['ad_spend'], 2)).border = thin_border
+        ws.cell(row=row, column=3, value=round(entry['ad_spend_with_gst'], 2)).border = thin_border
+        ws.cell(row=row, column=4, value=round(entry['website_collection'], 2)).border = thin_border
+        ws.cell(row=row, column=5, value=round(entry['qr_collection'], 2)).border = thin_border
+        ws.cell(row=row, column=6, value=round(entry['gateway_charge'], 2)).border = thin_border
+        ws.cell(row=row, column=7, value=round(entry['total_revenue'], 2)).border = thin_border
+        ws.cell(row=row, column=8, value=round(entry['net_profit'], 2)).border = thin_border
+        ws.cell(row=row, column=9, value=round(entry['platform_commission'], 2)).border = thin_border
+        ws.cell(row=row, column=10, value=round(after_comm, 2)).border = thin_border
+        
+        # Apply number format to currency columns
+        for c in range(2, 11):
+            ws.cell(row=row, column=c).number_format = currency_format
+            ws.cell(row=row, column=c).alignment = Alignment(horizontal='right')
+        
+        totals["ad_spend"] += entry["ad_spend"]
+        totals["ad_spend_with_gst"] += entry["ad_spend_with_gst"]
+        totals["website"] += entry["website_collection"]
+        totals["qr"] += entry["qr_collection"]
+        totals["gateway"] += entry["gateway_charge"]
+        totals["revenue"] += entry["total_revenue"]
+        totals["profit"] += entry["net_profit"]
+        totals["commission"] += entry["platform_commission"]
+        totals["after_commission"] += after_comm
+        row += 1
+    
+    # Totals row
+    total_row = row
+    ws.cell(row=total_row, column=1, value='TOTAL').font = total_font
+    ws.cell(row=total_row, column=1).fill = total_fill
+    ws.cell(row=total_row, column=1).border = thin_border
+    total_values = [totals['ad_spend'], totals['ad_spend_with_gst'], totals['website'], totals['qr'], totals['gateway'], totals['revenue'], totals['profit'], totals['commission'], totals['after_commission']]
+    for c_idx, val in enumerate(total_values, 2):
+        cell = ws.cell(row=total_row, column=c_idx, value=round(val, 2))
+        cell.font = total_font
+        cell.fill = total_fill
+        cell.number_format = currency_format
+        cell.alignment = Alignment(horizontal='right')
+        cell.border = thin_border
+    
+    # Summary section (2 rows below totals)
+    summary_start = total_row + 2
+    ws.merge_cells(f'A{summary_start}:B{summary_start}')
+    ws.cell(row=summary_start, column=1, value='Summary').font = Font(name='Calibri', bold=True, color='FFFFFF', size=12)
+    ws.cell(row=summary_start, column=1).fill = summary_header_fill
+    ws.cell(row=summary_start, column=1).alignment = Alignment(horizontal='center')
+    ws.cell(row=summary_start, column=2).fill = summary_header_fill
+    
+    ad_account = settlement.get("ad_account_charges", 0) if settlement else 0
+    misc = settlement.get("miscellaneous_expenses", 0) if settlement else 0
+    funds_to_give = totals["profit"] - totals["commission"] - ad_account - misc
+    
+    summary_items = [
+        ("Total Net Profit", totals['profit']),
+        (f"Platform Commission ({comm_pct}%)", totals['commission']),
+        (f"After Commission ({after_comm_pct}%)", totals['after_commission']),
+        ("Ad Account Charges", ad_account),
+        ("Miscellaneous Expenses", misc),
+        ("Funds to be Given", funds_to_give),
+    ]
+    
+    for i, (label, value) in enumerate(summary_items):
+        r = summary_start + 1 + i
+        ws.cell(row=r, column=1, value=label).border = thin_border
+        val_cell = ws.cell(row=r, column=2, value=round(value, 2))
+        val_cell.number_format = currency_format
+        val_cell.alignment = Alignment(horizontal='right')
+        val_cell.border = thin_border
+        # Highlight last row (Funds to be Given)
+        if i == len(summary_items) - 1:
+            ws.cell(row=r, column=1).font = total_font
+            ws.cell(row=r, column=1).fill = summary_highlight_fill
+            val_cell.font = total_font
+            val_cell.fill = summary_highlight_fill
+    
+    # Column widths
+    col_widths = [12, 12, 12, 14, 10, 12, 14, 14, 14, 14]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    safe_campaign_name = campaign['name'].replace(' ', '_').replace('-', '_')
+    month_for_filename = format_month_name(report_month).replace(', ', '_').replace(' ', '_')
+    filename = f"{safe_campaign_name}_{month_for_filename}.xlsx"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 

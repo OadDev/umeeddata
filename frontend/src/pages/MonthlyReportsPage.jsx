@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Skeleton } from '../components/ui/skeleton';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { FilePdf, Download, ChartPie, Check, X } from '@phosphor-icons/react';
+import { FilePdf, FileXls, Download, ChartPie, Check, X } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const MonthlyReportsPage = () => {
@@ -69,6 +69,26 @@ const MonthlyReportsPage = () => {
       toast.success('PDF downloaded successfully');
     } catch (e) {
       toast.error('Failed to download PDF');
+    }
+  };
+
+  const downloadExcel = async (campaignId, month, campaignName) => {
+    try {
+      const response = await axios.get(`${API}/generate-excel/${campaignId}/${month}`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      const monthName = formatMonthFull(month);
+      const safeName = campaignName.replace(/\s+/g, '_').replace(/-/g, '_');
+      a.download = `${safeName}_${monthName.replace(', ', '_')}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel downloaded successfully');
+    } catch (e) {
+      toast.error('Failed to download Excel');
     }
   };
 
@@ -188,7 +208,7 @@ const MonthlyReportsPage = () => {
                   <TableHead className="text-right">Misc</TableHead>
                   <TableHead className="text-right">To Give</TableHead>
                   <TableHead className="text-center">Settlement</TableHead>
-                  <TableHead className="text-center">PDF</TableHead>
+                  <TableHead className="text-center">Export</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -227,14 +247,26 @@ const MonthlyReportsPage = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => downloadPDF(report.campaign_id, report.month, report.campaign_name)}
-                            data-testid={`download-pdf-${report.campaign_id}-${report.month}`}
-                          >
-                            <FilePdf size={20} className="text-red-500" />
-                          </Button>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => downloadPDF(report.campaign_id, report.month, report.campaign_name)}
+                              data-testid={`download-pdf-${report.campaign_id}-${report.month}`}
+                              title="Download PDF"
+                            >
+                              <FilePdf size={20} className="text-red-500" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => downloadExcel(report.campaign_id, report.month, report.campaign_name)}
+                              data-testid={`download-excel-${report.campaign_id}-${report.month}`}
+                              title="Download Excel"
+                            >
+                              <FileXls size={20} className="text-green-600" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
