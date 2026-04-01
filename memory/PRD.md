@@ -87,8 +87,18 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 ### PDF Generation
 - [x] Server-side PDF with ReportLab
 - [x] Campaign header with settings
-- [x] Daily entries table
+- [x] Daily entries table (10 columns, landscape A4)
 - [x] Summary with totals
+- [x] Column layout fixed - all columns visible without clipping
+
+### Excel Export (April 1, 2026)
+- [x] Server-side Excel with openpyxl
+- [x] Title section with campaign name and month
+- [x] Daily entries table with 10 columns
+- [x] Totals row with bold formatting
+- [x] Summary section with Net Profit, Commission, Charges, Funds to Give
+- [x] Color-coded headers (green theme) and cell borders
+- [x] Download button alongside PDF on Monthly Reports page
 
 ### UI/UX
 - [x] Mobile responsive design
@@ -103,9 +113,9 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 ### P0 (Critical) - None
 
 ### P1 (High Priority)
+- [x] Data export to Excel (Completed April 1, 2026)
 - [ ] Password change functionality
 - [ ] Forgot password flow
-- [ ] Data export to Excel
 
 ### P2 (Medium Priority)
 - [ ] Dashboard date range selector
@@ -116,7 +126,6 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 ### P3 (Low Priority)
 - [ ] Dark mode toggle
 - [ ] Dashboard customization
-- [ ] Bulk entry import (CSV)
 - [ ] Campaign comparison reports
 
 ## Demo Data
@@ -130,6 +139,6 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 
 ## Next Tasks
 1. Add password change functionality
-2. Implement forgot password flow
-3. Add Excel export option
+2. Implement forgot password / password reset flow
+3. Email notifications for monthly settlements
 4. Dashboard date range selector
