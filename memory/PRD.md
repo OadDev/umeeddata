@@ -100,6 +100,18 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 - [x] Color-coded headers (green theme) and cell borders
 - [x] Download button alongside PDF on Monthly Reports page
 
+### Fund Disbursements (April 1, 2026)
+- [x] Track fund disbursements per campaign per month
+- [x] CRUD endpoints (admin create/edit/delete, user view-only)
+- [x] Transfer modes: Bank Transfer (NEFT/RTGS/IMPS), UPI, Cheque, Cash, Other
+- [x] Summary with Funds to Give, Total Disbursed, Balance Remaining
+- [x] Balance Overview table with Pending/Partial/Fully Paid status badges
+- [x] Transaction History table with date, amount, mode, remarks
+- [x] Campaign and month filters
+- [x] Add/Edit dialog with form validation
+- [x] Delete confirmation dialog
+- [x] Role-based: admin sees edit/delete, user only views
+
 ### UI/UX
 - [x] Mobile responsive design
 - [x] Umeed Now Foundation branding
@@ -114,6 +126,7 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 
 ### P1 (High Priority)
 - [x] Data export to Excel (Completed April 1, 2026)
+- [x] Fund Disbursement tracking (Completed April 1, 2026)
 - [ ] Password change functionality
 - [ ] Forgot password flow
 
