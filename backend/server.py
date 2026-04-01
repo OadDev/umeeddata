@@ -1461,8 +1461,13 @@ async def startup():
     await db.disbursements.create_index([("campaign_id", 1), ("report_month", 1)])
     
     # Seed admin
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@umeednow.org")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@umeed.org")
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    
+    # Migrate: clean up old admin email if new one is different
+    if admin_email != "admin@umeednow.org":
+        await db.users.delete_many({"email": "admin@umeednow.org", "role": "admin"})
+    
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
         hashed = hash_password(admin_password)
@@ -1495,7 +1500,7 @@ async def startup():
         f.write(f"- Password: {admin_password}\n")
         f.write(f"- Role: admin\n\n")
         f.write(f"## User Account\n")
-        f.write(f"- Email: user@umeednow.org\n")
+        f.write(f"- Email: user@umeed.org\n")
         f.write(f"- Password: user123\n")
         f.write(f"- Role: user\n\n")
         f.write(f"## Endpoints\n")
@@ -1512,7 +1517,8 @@ async def seed_demo_data():
     logger.info("Seeding demo data...")
     
     # Create demo user
-    user_email = "user@umeednow.org"
+    user_email = "user@umeed.org"
+    await db.users.delete_many({"email": "user@umeednow.org", "role": "user"})
     existing_user = await db.users.find_one({"email": user_email})
     if not existing_user:
         await db.users.insert_one({
