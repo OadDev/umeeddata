@@ -49,7 +49,9 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 - [x] Notes field
 
 ### Dashboard
-- [x] Today's stats (Profit, Revenue, Ad Spend, Collections)
+- [x] Today's stats (Profit, Revenue, Ad Spend, Website Collection, QR Collection, Platform Profit)
+- [x] Today vs Yesterday comparison with % change for all 6 metrics
+- [x] This Month vs Last Month comparison
 - [x] Revenue & Profit trend chart (30 days)
 - [x] Source split pie chart (Website vs QR)
 - [x] Campaign performance bar chart

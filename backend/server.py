@@ -773,7 +773,9 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     today_vs_yesterday = {
         "profit_change": calc_change(today_stats["total_profit"], yesterday_stats["total_profit"]),
         "revenue_change": calc_change(today_stats["total_revenue"], yesterday_stats["total_revenue"]),
-        "ad_spend_change": calc_change(today_stats["total_ad_spend"], yesterday_stats["total_ad_spend"])
+        "ad_spend_change": calc_change(today_stats["total_ad_spend"], yesterday_stats["total_ad_spend"]),
+        "website_change": calc_change(today_stats["website_collection"], yesterday_stats["website_collection"]),
+        "qr_change": calc_change(today_stats["qr_collection"], yesterday_stats["qr_collection"])
     }
     
     this_month_vs_last = {

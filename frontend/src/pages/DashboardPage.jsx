@@ -131,7 +131,7 @@ const DashboardPage = () => {
       {/* Today vs Yesterday Comparison */}
       <div>
         <h2 className="text-lg font-semibold text-[#1C1917] mb-3">Today vs Yesterday</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Card className="card-hover border-stone-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
@@ -160,6 +160,26 @@ const DashboardPage = () => {
               </div>
               <p className="text-xl font-bold text-red-500">{formatCurrency(today.total_ad_spend || 0)}</p>
               <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_ad_spend || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">Website Collection</span>
+                <ChangeIndicator change={todayVsYesterday.website_change || 0} />
+              </div>
+              <p className="text-xl font-bold text-[#3B82F6]">{formatCurrency(today.website_collection || 0)}</p>
+              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.website_collection || 0)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-hover border-stone-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-[#78716C] uppercase">QR Collection</span>
+                <ChangeIndicator change={todayVsYesterday.qr_change || 0} />
+              </div>
+              <p className="text-xl font-bold text-[#8B5CF6]">{formatCurrency(today.qr_collection || 0)}</p>
+              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.qr_collection || 0)}</p>
             </CardContent>
           </Card>
           <Card className="card-hover border-stone-200">
@@ -220,28 +240,6 @@ const DashboardPage = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      {/* Collection Sources Today */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="card-hover border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Desktop size={20} className="text-[#3B82F6]" />
-              <span className="text-xs font-medium text-[#78716C] uppercase">Website Collection Today</span>
-            </div>
-            <p className="text-xl font-bold text-[#3B82F6]">{formatCurrency(today.website_collection || 0)}</p>
-          </CardContent>
-        </Card>
-        <Card className="card-hover border-stone-200">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <QrCode size={20} className="text-[#8B5CF6]" />
-              <span className="text-xs font-medium text-[#78716C] uppercase">QR Collection Today</span>
-            </div>
-            <p className="text-xl font-bold text-[#8B5CF6]">{formatCurrency(today.qr_collection || 0)}</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Charts Row 1 */}
