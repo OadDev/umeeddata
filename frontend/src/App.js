@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
-import { toast } from 'sonner';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -25,20 +24,6 @@ import DashboardLayout from './components/DashboardLayout';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Configure axios
-axios.defaults.withCredentials = true;
-
-// Auth Context
-const AuthContext = createContext(null);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
-
 // Format API error
 const formatApiErrorDetail = (detail) => {
   if (detail == null) return 'Something went wrong. Please try again.';
@@ -47,52 +32,6 @@ const formatApiErrorDetail = (detail) => {
     return detail.map((e) => (e && typeof e.msg === 'string' ? e.msg : JSON.stringify(e))).filter(Boolean).join(' ');
   if (detail && typeof detail.msg === 'string') return detail.msg;
   return String(detail);
-};
-
-// Auth Provider
-const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const checkAuth = useCallback(async () => {
-    try {
-      const { data } = await axios.get(`${API}/auth/me`);
-      setUser(data);
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  const login = async (email, password) => {
-    try {
-      const { data } = await axios.post(`${API}/auth/login`, { email, password });
-      setUser(data);
-      return { success: true };
-    } catch (e) {
-      return { success: false, error: formatApiErrorDetail(e.response?.data?.detail) || e.message };
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await axios.post(`${API}/auth/logout`);
-    } catch {
-      // ignore
-    }
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin: user?.role === 'admin' }}>
-      {children}
-    </AuthContext.Provider>
-  );
 };
 
 // Protected Route
@@ -119,14 +58,33 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   return children;
 };
 
+// Public Route — redirect to dashboard if already logged in
+const PublicRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAF9]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6AAF35]"></div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Toaster position="top-right" richColors />
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route
             path="/dashboard"
             element={
@@ -247,7 +205,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

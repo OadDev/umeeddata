@@ -270,9 +270,10 @@ async def login(user_data: UserLogin, response: Response, request: Request):
     response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=86400, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
     
-    return {"id": user_id, "email": email, "name": user["name"], "role": user["role"]}
-
-@api_router.post("/auth/logout")
+    return {
+        "token": access_token,
+        "user": {"id": user_id, "email": email, "name": user["name"], "role": user["role"]}
+    }
 async def logout(response: Response):
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")

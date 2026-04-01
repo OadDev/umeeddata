@@ -25,10 +25,14 @@ Internal web application for managing crowdfunding campaign finances, replacing 
 ## What's Been Implemented (March 31, 2026)
 
 ### Authentication & Authorization
-- [x] JWT-based login/logout
+- [x] JWT-based login/logout with Bearer token
+- [x] Token stored in localStorage (portable for VPS deployment)
+- [x] AuthContext in separate `src/context/AuthContext.js`
 - [x] Role-based access (Admin/User)
-- [x] Protected routes
+- [x] Protected routes (redirect to /login if unauthenticated)
+- [x] Public route guard (redirect to /dashboard if already logged in)
 - [x] Brute force protection
+- [x] Session persists on page refresh
 
 ### Campaign Management
 - [x] Create/Edit/Delete campaigns
