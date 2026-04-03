@@ -3,6 +3,7 @@ load_dotenv()
 
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, Query
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -1450,6 +1451,11 @@ async def generate_excel(campaign_id: str, report_month: str, user: dict = Depen
     )
 
 # ============ STARTUP ============
+# Health check endpoint (for Railway)
+@api_router.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 @app.on_event("startup")
 async def startup():
     # Create indexes
@@ -1601,13 +1607,35 @@ async def seed_demo_data():
 app.include_router(api_router)
 
 # CORS middleware
+cors_origins = os.environ.get("CORS_ORIGINS", "")
+allowed_origins = [o.strip() for o in cors_origins.split(",") if o.strip()] if cors_origins else []
+allowed_origins.extend([
+    os.environ.get("FRONTEND_URL", "http://localhost:3000"),
+    "https://fund-tracker-153.preview.emergentagent.com"
+])
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "https://fund-tracker-153.preview.emergentagent.com"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve React static build (for Railway single-container deployment)
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(static_dir):
+    from fastapi.responses import FileResponse
+    
+    # Serve static assets (JS, CSS, images)
+    app.mount("/static", StaticFiles(directory=os.path.join(static_dir, "static")), name="static-assets")
+    
+    # Serve all non-API routes with index.html (React SPA routing)
+    @app.get("/{full_path:path}")
+    async def serve_react(full_path: str):
+        file_path = os.path.join(static_dir, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(static_dir, "index.html"))
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
