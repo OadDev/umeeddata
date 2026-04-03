@@ -127,11 +127,6 @@ const LoginPage = () => {
               </Button>
             </form>
 
-            <div className="mt-6 p-4 rounded-lg bg-stone-100 border border-stone-200">
-              <p className="text-xs text-[#78716C] mb-2 font-medium">Demo Credentials:</p>
-              <p className="text-xs text-[#44403C]"><strong>Admin:</strong> admin@umeed.org / admin123</p>
-              <p className="text-xs text-[#44403C]"><strong>User:</strong> user@umeed.org / user123</p>
-            </div>
           </CardContent>
         </Card>
       </div>
