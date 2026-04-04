@@ -128,6 +128,7 @@ class DisbursementUpdate(BaseModel):
 class SettingsUpdate(BaseModel):
     gst_percentage: Optional[float] = None
     gateway_percentage: Optional[float] = None
+    qr_percentage: Optional[float] = None
 
 # ============ HELPERS ============
 def hash_password(password: str) -> str:
@@ -191,7 +192,7 @@ async def require_admin(request: Request) -> dict:
 async def get_settings():
     settings = await db.settings.find_one({"_id": "global"}, {"_id": 0})
     if not settings:
-        settings = {"gst_percentage": 18.0, "gateway_percentage": 2.6}
+        settings = {"gst_percentage": 18.0, "gateway_percentage": 2.6, "qr_percentage": 0}
     return settings
 
 def calculate_daily_values(entry: dict, settings: dict, commission_percentage: float) -> dict:
@@ -203,13 +204,16 @@ def calculate_daily_values(entry: dict, settings: dict, commission_percentage: f
     
     ad_spend_with_gst = round(ad_spend + (ad_spend * gst / 100), 2)
     gateway_charge = round(website_collection * gateway / 100, 2)
-    total_revenue = round(website_collection + qr_collection - gateway_charge, 2)
+    qr_pct = settings.get("qr_percentage", 0)
+    qr_charge = round(qr_collection * qr_pct / 100, 2)
+    total_revenue = round(website_collection + qr_collection - gateway_charge - qr_charge, 2)
     net_profit = round(total_revenue - ad_spend_with_gst, 2)
     platform_commission = round(net_profit * commission_percentage / 100, 2) if net_profit > 0 else 0
     
     return {
         "ad_spend_with_gst": ad_spend_with_gst,
         "gateway_charge": gateway_charge,
+        "qr_charge": qr_charge,
         "total_revenue": total_revenue,
         "net_profit": net_profit,
         "platform_commission": platform_commission
@@ -388,6 +392,8 @@ async def update_settings(data: SettingsUpdate, admin: dict = Depends(require_ad
         update_data["gst_percentage"] = data.gst_percentage
     if data.gateway_percentage is not None:
         update_data["gateway_percentage"] = data.gateway_percentage
+    if data.qr_percentage is not None:
+        update_data["qr_percentage"] = data.qr_percentage
     
     if update_data:
         await db.settings.update_one(
@@ -729,6 +735,7 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     today = now.strftime("%Y-%m-%d")
     yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    day_before = (now - timedelta(days=2)).strftime("%Y-%m-%d")
     
     # This month range
     this_month_start = now.replace(day=1).strftime("%Y-%m-%d")
@@ -741,11 +748,11 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     
     settings = await get_settings()
     
-    # Today's global stats
-    today_entries = await db.daily_entries.find({"date": today}, {"_id": 0}).to_list(1000)
-    
-    # Yesterday's stats
+    # Yesterday's stats (primary day since data is entered after midnight)
     yesterday_entries = await db.daily_entries.find({"date": yesterday}, {"_id": 0}).to_list(1000)
+    
+    # Day before yesterday's stats (comparison)
+    day_before_entries = await db.daily_entries.find({"date": day_before}, {"_id": 0}).to_list(1000)
     
     # This month's stats
     this_month_entries = await db.daily_entries.find({
@@ -767,8 +774,8 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
             "qr_collection": round(sum(e.get("qr_collection", 0) for e in entries), 2)
         }
     
-    today_stats = calculate_stats(today_entries)
-    yesterday_stats = calculate_stats(yesterday_entries)
+    today_stats = calculate_stats(yesterday_entries)
+    yesterday_stats = calculate_stats(day_before_entries)
     this_month_stats = calculate_stats(this_month_entries)
     last_month_stats = calculate_stats(last_month_entries)
     
@@ -796,7 +803,7 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     campaigns = await db.campaigns.find({"status": "active"}, {"_id": 0}).to_list(1000)
     campaign_stats = []
     for camp in campaigns:
-        camp_entries = [e for e in today_entries if e["campaign_id"] == camp["id"]]
+        camp_entries = [e for e in yesterday_entries if e["campaign_id"] == camp["id"]]
         campaign_stats.append({
             "id": camp["id"],
             "name": camp["name"],
@@ -822,11 +829,11 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     trend_list = sorted(trend_data.values(), key=lambda x: x["date"])
     
     return {
-        "today": today_stats,
-        "yesterday": yesterday_stats,
+        "yesterday": today_stats,
+        "day_before": yesterday_stats,
         "this_month": this_month_stats,
         "last_month": last_month_stats,
-        "today_vs_yesterday": today_vs_yesterday,
+        "yesterday_vs_day_before": today_vs_yesterday,
         "this_month_vs_last": this_month_vs_last,
         "campaign_stats": campaign_stats,
         "trend_data": trend_list,
@@ -1071,7 +1078,7 @@ async def generate_pdf(campaign_id: str, report_month: str, user: dict = Depends
     # Header
     elements.append(Paragraph(f"Umeed Now Foundation - Monthly Report", title_style))
     elements.append(Paragraph(f"Campaign: {campaign['name']}", subtitle_style))
-    elements.append(Paragraph(f"Month: {month_display} | Commission: {campaign['commission_percentage']}% | GST: {settings['gst_percentage']}% | Gateway: {settings['gateway_percentage']}%", subtitle_style))
+    elements.append(Paragraph(f"Month: {month_display} | Commission: {campaign['commission_percentage']}% | GST: {settings['gst_percentage']}% | Gateway: {settings['gateway_percentage']}% | QR: {settings.get('qr_percentage', 0)}%", subtitle_style))
     elements.append(Spacer(1, 10))
     
     # Table data - include commission percentage in headers
@@ -1340,7 +1347,7 @@ async def generate_excel(campaign_id: str, report_month: str, user: dict = Depen
     ws['A2'].alignment = Alignment(horizontal='center')
     
     ws.merge_cells('A3:J3')
-    ws['A3'] = f'Month: {month_display} | Commission: {comm_pct}% | GST: {settings["gst_percentage"]}% | Gateway: {settings["gateway_percentage"]}%'
+    ws['A3'] = f'Month: {month_display} | Commission: {comm_pct}% | GST: {settings["gst_percentage"]}% | Gateway: {settings["gateway_percentage"]}% | QR: {settings.get("qr_percentage", 0)}%'
     ws['A3'].font = subtitle_font
     ws['A3'].alignment = Alignment(horizontal='center')
     
@@ -1498,7 +1505,7 @@ async def startup():
     # Initialize settings
     settings = await db.settings.find_one({"_id": "global"})
     if not settings:
-        await db.settings.insert_one({"_id": "global", "gst_percentage": 18.0, "gateway_percentage": 2.6})
+        await db.settings.insert_one({"_id": "global", "gst_percentage": 18.0, "gateway_percentage": 2.6, "qr_percentage": 0})
     
     # Seed demo data
     await seed_demo_data()

@@ -10,7 +10,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Gear, Percent, CreditCard, Lock, Eye, EyeSlash } from '@phosphor-icons/react';
 
 const SettingsPage = () => {
-  const [settings, setSettings] = useState({ gst_percentage: 18, gateway_percentage: 2.6 });
+  const [settings, setSettings] = useState({ gst_percentage: 18, gateway_percentage: 2.6, qr_percentage: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -158,6 +158,30 @@ const SettingsPage = () => {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="qr" className="flex items-center gap-2">
+                <CreditCard size={18} className="text-[#8B5CF6]" />
+                QR Transaction Percentage
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="qr"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={settings.qr_percentage || 0}
+                  onChange={(e) => setSettings({ ...settings, qr_percentage: parseFloat(e.target.value) || 0 })}
+                  className="max-w-[150px]"
+                  data-testid="qr-input"
+                />
+                <span className="text-[#78716C]">%</span>
+              </div>
+              <p className="text-xs text-[#78716C]">
+                Deducted from QR Collection for gateway transaction fees
+              </p>
+            </div>
+
             <div className="pt-4 border-t border-stone-200">
               <Button 
                 type="submit" 
@@ -202,6 +226,15 @@ const SettingsPage = () => {
             <div className="flex justify-between">
               <span className="text-[#78716C]">Gateway Charge ({settings.gateway_percentage}%):</span>
               <span className="font-medium text-red-500">₹{(50000 * settings.gateway_percentage / 100).toFixed(2)}</span>
+            </div>
+            <div className="border-t border-stone-200 my-2"></div>
+            <div className="flex justify-between">
+              <span className="text-[#78716C]">Example QR Collection:</span>
+              <span className="font-medium">₹20,000</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#78716C]">QR Transaction Charge ({settings.qr_percentage || 0}%):</span>
+              <span className="font-medium text-red-500">₹{(20000 * (settings.qr_percentage || 0) / 100).toFixed(2)}</span>
             </div>
           </div>
         </CardContent>

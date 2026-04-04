@@ -87,11 +87,11 @@ const DashboardPage = () => {
     );
   }
 
-  const today = data?.today || {};
   const yesterday = data?.yesterday || {};
+  const dayBefore = data?.day_before || {};
   const thisMonth = data?.this_month || {};
   const lastMonth = data?.last_month || {};
-  const todayVsYesterday = data?.today_vs_yesterday || {};
+  const yesterdayVsDayBefore = data?.yesterday_vs_day_before || {};
   const thisMonthVsLast = data?.this_month_vs_last || {};
   const trendData = data?.trend_data || [];
   const campaignStats = data?.campaign_stats || [];
@@ -110,8 +110,8 @@ const DashboardPage = () => {
   };
 
   const pieData = [
-    { name: 'Website', value: today.website_collection || 0 },
-    { name: 'QR', value: today.qr_collection || 0 }
+    { name: 'Website', value: yesterday.website_collection || 0 },
+    { name: 'QR', value: yesterday.qr_collection || 0 }
   ];
   const COLORS = ['#6AAF35', '#F5A623'];
 
@@ -128,58 +128,58 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Today vs Yesterday Comparison */}
+      {/* Yesterday vs Day Before Yesterday Comparison */}
       <div>
-        <h2 className="text-lg font-semibold text-[#1C1917] mb-3">Today vs Yesterday</h2>
+        <h2 className="text-lg font-semibold text-[#1C1917] mb-3">Yesterday vs Day Before</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <Card className="card-hover border-stone-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-[#78716C] uppercase">Profit</span>
-                <ChangeIndicator change={todayVsYesterday.profit_change || 0} />
+                <ChangeIndicator change={yesterdayVsDayBefore.profit_change || 0} />
               </div>
-              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(today.total_profit || 0)}</p>
-              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_profit || 0)}</p>
+              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(yesterday.total_profit || 0)}</p>
+              <p className="text-xs text-[#78716C]">Day Before: {formatCurrency(dayBefore.total_profit || 0)}</p>
             </CardContent>
           </Card>
           <Card className="card-hover border-stone-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-[#78716C] uppercase">Revenue</span>
-                <ChangeIndicator change={todayVsYesterday.revenue_change || 0} />
+                <ChangeIndicator change={yesterdayVsDayBefore.revenue_change || 0} />
               </div>
-              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(today.total_revenue || 0)}</p>
-              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_revenue || 0)}</p>
+              <p className="text-xl font-bold text-[#6AAF35]">{formatCurrency(yesterday.total_revenue || 0)}</p>
+              <p className="text-xs text-[#78716C]">Day Before: {formatCurrency(dayBefore.total_revenue || 0)}</p>
             </CardContent>
           </Card>
           <Card className="card-hover border-stone-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-[#78716C] uppercase">Ad Spend</span>
-                <ChangeIndicator change={todayVsYesterday.ad_spend_change || 0} inverse />
+                <ChangeIndicator change={yesterdayVsDayBefore.ad_spend_change || 0} inverse />
               </div>
-              <p className="text-xl font-bold text-red-500">{formatCurrency(today.total_ad_spend || 0)}</p>
-              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.total_ad_spend || 0)}</p>
+              <p className="text-xl font-bold text-red-500">{formatCurrency(yesterday.total_ad_spend || 0)}</p>
+              <p className="text-xs text-[#78716C]">Day Before: {formatCurrency(dayBefore.total_ad_spend || 0)}</p>
             </CardContent>
           </Card>
           <Card className="card-hover border-stone-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-[#78716C] uppercase">Website Collection</span>
-                <ChangeIndicator change={todayVsYesterday.website_change || 0} />
+                <ChangeIndicator change={yesterdayVsDayBefore.website_change || 0} />
               </div>
-              <p className="text-xl font-bold text-[#3B82F6]">{formatCurrency(today.website_collection || 0)}</p>
-              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.website_collection || 0)}</p>
+              <p className="text-xl font-bold text-[#3B82F6]">{formatCurrency(yesterday.website_collection || 0)}</p>
+              <p className="text-xs text-[#78716C]">Day Before: {formatCurrency(dayBefore.website_collection || 0)}</p>
             </CardContent>
           </Card>
           <Card className="card-hover border-stone-200">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-[#78716C] uppercase">QR Collection</span>
-                <ChangeIndicator change={todayVsYesterday.qr_change || 0} />
+                <ChangeIndicator change={yesterdayVsDayBefore.qr_change || 0} />
               </div>
-              <p className="text-xl font-bold text-[#8B5CF6]">{formatCurrency(today.qr_collection || 0)}</p>
-              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.qr_collection || 0)}</p>
+              <p className="text-xl font-bold text-[#8B5CF6]">{formatCurrency(yesterday.qr_collection || 0)}</p>
+              <p className="text-xs text-[#78716C]">Day Before: {formatCurrency(dayBefore.qr_collection || 0)}</p>
             </CardContent>
           </Card>
           <Card className="card-hover border-stone-200">
@@ -188,8 +188,8 @@ const DashboardPage = () => {
                 <span className="text-xs font-medium text-[#78716C] uppercase">Platform Profit</span>
                 <Percent size={16} className="text-[#F5A623]" />
               </div>
-              <p className="text-xl font-bold text-[#F5A623]">{formatCurrency(today.platform_profit || 0)}</p>
-              <p className="text-xs text-[#78716C]">Yesterday: {formatCurrency(yesterday.platform_profit || 0)}</p>
+              <p className="text-xl font-bold text-[#F5A623]">{formatCurrency(yesterday.platform_profit || 0)}</p>
+              <p className="text-xs text-[#78716C]">Day Before: {formatCurrency(dayBefore.platform_profit || 0)}</p>
             </CardContent>
           </Card>
         </div>
@@ -273,7 +273,7 @@ const DashboardPage = () => {
         {/* Source Split Pie */}
         <Card className="border-stone-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold text-[#1C1917]">Collection Source (Today)</CardTitle>
+            <CardTitle className="text-lg font-semibold text-[#1C1917]">Collection Source (Yesterday)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-72">
@@ -305,7 +305,7 @@ const DashboardPage = () => {
       {/* Campaign Comparison */}
       <Card className="border-stone-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold text-[#1C1917]">Campaign Performance (Today)</CardTitle>
+          <CardTitle className="text-lg font-semibold text-[#1C1917]">Campaign Performance (Yesterday)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-72">
